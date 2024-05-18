@@ -1,5 +1,7 @@
 package snotepad;
 
+import java.awt.Font;
+import java.awt.Robot;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.dnd.DnDConstants;
@@ -9,7 +11,10 @@ import java.awt.event.KeyEvent;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import javax.swing.JButton;
+import javax.swing.JMenuItem;
 import javax.swing.JTabbedPane;
+import javax.swing.JTextArea;
 
 /**
  *
@@ -22,14 +27,18 @@ public class CustomPanel2 extends javax.swing.JPanel {
     private String codeText;
     private boolean locked;
     private boolean saved;
+    private File fileObject;
     private String fileName;
     private String completeLocation;
     private StringBuffer stb = new StringBuffer();
     private JTabbedPane tabbedPanel;
+    private JMenuItem menuLock;
+    private JMenuItem menuSave;
+    private JButton btn_save;
 
     public void setSavedStatus(boolean b) {
         saved = b;
-        
+
         addMark();
     }
 
@@ -47,7 +56,23 @@ public class CustomPanel2 extends javax.swing.JPanel {
         addMark();
     }
 
-    private boolean isSaved() {
+    int fontSize;
+    Font font = null;
+
+    public void makeBiggerFont() {
+        int newSize = jTextArea.getFont().getSize();
+        newSize += 2;
+        jTextArea.setFont(new Font(jTextArea.getFont().getName(), jTextArea.getFont().getStyle(), newSize));
+    }
+
+    public void makeSmallerFont() {
+        int newSize = jTextArea.getFont().getSize();
+        newSize -= 2;
+        jTextArea.setFont(new Font(jTextArea.getFont().getName(), jTextArea.getFont().getStyle(), newSize));
+
+    }
+
+    public boolean isSaved() {
         return saved;
     }
 
@@ -58,30 +83,40 @@ public class CustomPanel2 extends javax.swing.JPanel {
             if (!isSaved()) {
                 changeTitleOfTab(title + "*");
             }
-        }else{
-            if(isSaved()){
+        } else {
+            if (isSaved()) {
                 changeTitleOfTab(title.replace("*", ""));
             }
         }
 
     }
 
-    private void clear() {
+    public  void clear() {
         stb = new StringBuffer();
         this.setOriginalText(stb.toString());
+
     }
 
     public void lock() {
         // this will automatically toggle
         locked = !locked;
         refreshRender();
+
+        // disable the editor
+        jTextArea.setEnabled(!locked);
     }
 
-    private void refreshRender() {
+    public void setNewOriginalText(String n){
+        this.clear();
+        this.appendText(n);
+        this.refreshRender();
+    }
+    
+    public void refreshRender() {
         if (isLockOrNot()) {
-            jEditorPane1.setText(this.getCodeText());
+            jTextArea.setText(this.getCodeText());
         } else {
-            jEditorPane1.setText(this.getOriginalText());
+            jTextArea.setText(this.getOriginalText());
         }
     }
 
@@ -163,16 +198,22 @@ public class CustomPanel2 extends javax.swing.JPanel {
         applyDropable();
     }
 
-    public CustomPanel2(JTabbedPane jtb, int nomerX) {
+    public CustomPanel2(JTabbedPane jtb, int nomerX,
+            JMenuItem menuLockNa, JMenuItem menuSaveNa,
+            JButton btnSaveNa) {
         initComponents();
         tabbedPanel = jtb;
         nomer = nomerX;
+        menuLock = menuLockNa;
+        menuSave = menuSaveNa;
+        btn_save = btnSaveNa;
+        
         applyDropable();
     }
 
     private void applyDropable() {
 
-        jEditorPane1.setDropTarget(new DropTarget() {
+        jTextArea.setDropTarget(new DropTarget() {
             public synchronized void drop(DropTargetDropEvent evt) {
                 try {
 
@@ -183,7 +224,12 @@ public class CustomPanel2 extends javax.swing.JPanel {
                         java.util.List<File> files = (java.util.List<File>) transferable.getTransferData(DataFlavor.javaFileListFlavor);
                         if (!files.isEmpty()) {
                             File file = files.get(0);
+                            // clear the notepad first
+                            clear();
                             readFileContent(file);
+
+                            // to make the cursor at the beginning of the content
+                            jTextArea.setCaretPosition(0);
                         }
                     }
 
@@ -205,39 +251,57 @@ public class CustomPanel2 extends javax.swing.JPanel {
     private void initComponents() {
 
         jScrollPane1 = new javax.swing.JScrollPane();
-        jEditorPane1 = new javax.swing.JEditorPane();
+        jTextArea = new javax.swing.JTextArea();
 
         setLayout(new javax.swing.BoxLayout(this, javax.swing.BoxLayout.LINE_AXIS));
 
-        jEditorPane1.addKeyListener(new java.awt.event.KeyAdapter() {
+        jTextArea.setColumns(20);
+        jTextArea.setRows(5);
+        jTextArea.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                jEditorPane1KeyPressed(evt);
-            }
-            public void keyReleased(java.awt.event.KeyEvent evt) {
-                jEditorPane1KeyReleased(evt);
-            }
-            public void keyTyped(java.awt.event.KeyEvent evt) {
-                jEditorPane1KeyTyped(evt);
+                jTextAreaKeyPressed(evt);
             }
         });
-        jScrollPane1.setViewportView(jEditorPane1);
+        jScrollPane1.setViewportView(jTextArea);
 
         add(jScrollPane1);
     }// </editor-fold>//GEN-END:initComponents
 
-    private void jEditorPane1KeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_jEditorPane1KeyReleased
-        if (evt.getKeyCode() == KeyEvent.VK_SHIFT) {
-            shiftPressed = false;
-        } else if (evt.getKeyCode() == KeyEvent.VK_CONTROL) {
-            ctrlPressed = false;
-        } else if (ctrlPressed && evt.getKeyCode() == KeyEvent.VK_A) {
-            // If Ctrl is pressed and 'A' is pressed/released subsequently, 
-            // do something here (e.g., select all text in a JTextArea)
-            jEditorPane1.selectAll();
+    private void jTextAreaKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_jTextAreaKeyPressed
+
+        if (evt.isControlDown() && evt.getKeyCode() == KeyEvent.VK_EQUALS) {
+
+            makeBiggerFont();
+
+        } else if (evt.isControlDown() && evt.getKeyCode() == KeyEvent.VK_MINUS) {
+
+            makeSmallerFont();
+
+        } else if (evt.isControlDown() && evt.getKeyCode() == KeyEvent.VK_E) {
+
+            toggleWrapMode();
+            System.out.println("Detek");
+
+        } else if (evt.isControlDown() && evt.isAltDown() && (evt.getKeyCode() == KeyEvent.VK_U || evt.getKeyCode() == KeyEvent.VK_L)) {
+
+            if (isLockOrNot()) {
+                menuLock.setText("Unlock");
+            } else {
+                menuLock.setText("Lock");
+            }
+
+            this.lock();
+
+        } else {
+
+            // toggle the save button
+            menuSave.setEnabled(true);
+            btn_save.setEnabled(true);
+            this.appendText(jTextArea.getText());
+
         }
 
-
-    }//GEN-LAST:event_jEditorPane1KeyReleased
+    }//GEN-LAST:event_jTextAreaKeyPressed
 
     private boolean isBackSpace(KeyEvent evt) {
         boolean t = false;
@@ -251,63 +315,19 @@ public class CustomPanel2 extends javax.swing.JPanel {
         return t;
     }
 
-    private void jEditorPane1KeyTyped(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_jEditorPane1KeyTyped
-// Consume the event to prevent further processing by other listeners
-        evt.consume();
-    }//GEN-LAST:event_jEditorPane1KeyTyped
-
     boolean ctrlPressed;
     boolean shiftPressed;
     boolean selectAllPressed;
 
-    private void jEditorPane1KeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_jEditorPane1KeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_SHIFT) {
-            shiftPressed = true;
-        } else if (evt.getKeyCode() == KeyEvent.VK_CONTROL) {
-            ctrlPressed = true;
-        } else if (evt.getKeyCode() != KeyEvent.VK_BACK_SPACE && evt.getKeyCode() != KeyEvent.VK_SHIFT) {
-            if ((!ctrlPressed || evt.getKeyCode() != KeyEvent.VK_C) && !isBackSpace(evt) && evt.getKeyCode() != KeyEvent.VK_X
-                    && (!ctrlPressed || evt.getKeyCode() != KeyEvent.VK_A)) {
+    boolean wrapMode = true;
 
-                char typedChar = evt.getKeyChar();
+    public void toggleWrapMode() {
+        this.wrapMode = !wrapMode;
 
-                if (Character.isAlphabetic(typedChar)) {
-                    // Use getKeyText to get uppercase characters if Shift is pressed
-                    if (shiftPressed) {
-                        typedChar = evt.getKeyText(evt.getKeyCode()).charAt(0);
-                    }
-                }
+        this.jTextArea.setLineWrap(wrapMode);
+        this.jTextArea.setWrapStyleWord(wrapMode);
 
-                System.out.println("we got " + typedChar);
-
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    this.appendText("\n");
-                    evt.consume();
-
-                } else {
-                    this.appendText(String.valueOf(typedChar));
-                }
-
-                if (!isLockOrNot()) {
-                    jEditorPane1.setText(this.getOriginalText());
-                } else {
-                    jEditorPane1.setText(this.getCodeText());
-                }
-
-            } else if (ctrlPressed && evt.getKeyCode() == KeyEvent.VK_A) {
-                selectAllPressed = true;
-                //System.out.println("sampe nih!");
-            }
-        } else if (selectAllPressed && evt.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
-            clear();
-            selectAllPressed = false;
-        } else {
-            // when backspace pressed
-            if (this.getOriginalText().length() != 0) {
-                this.backspace();
-            }
-        }
-    }//GEN-LAST:event_jEditorPane1KeyPressed
+    }
 
     private void readFileContent(File file) {
         try {
@@ -320,15 +340,16 @@ public class CustomPanel2 extends javax.swing.JPanel {
                 appendText("\n");
             }
 
-            this.jEditorPane1.setText(getOriginalText());
+            this.jTextArea.setText(getOriginalText());
 
         } catch (Exception e) {
             System.err.println("Error when reading file content...");
         }
+        
     }
 
-    private boolean isEmptyEditor() {
-        if (jEditorPane1.getText().length() == 0) {
+    public boolean isEmptyEditor() {
+        if (jTextArea.getText().length() == 0) {
             return true;
         }
 
@@ -343,8 +364,62 @@ public class CustomPanel2 extends javax.swing.JPanel {
 
     }
 
+    void highlightText() {
+
+        this.jTextArea.requestFocus();
+
+        try {
+            Robot robot = new Robot();
+            robot.keyPress(KeyEvent.VK_CONTROL);
+            robot.keyPress(KeyEvent.VK_A);
+            robot.keyRelease(KeyEvent.VK_A);
+            robot.keyRelease(KeyEvent.VK_CONTROL);
+        } catch (Exception e) {
+
+        }
+
+    }
+
+    void pasteText() {
+
+         this.jTextArea.requestFocus();
+
+        
+        try {
+            Robot robot = new Robot();
+            robot.keyPress(KeyEvent.VK_CONTROL);
+            robot.keyPress(KeyEvent.VK_V);
+            robot.keyRelease(KeyEvent.VK_V);
+            robot.keyRelease(KeyEvent.VK_CONTROL);
+        } catch (Exception e) {
+
+        }
+
+    }
+
+    private class EditorPane extends JTextArea {
+
+        public EditorPane() {
+            super();
+        }
+    }
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JEditorPane jEditorPane1;
     private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JTextArea jTextArea;
     // End of variables declaration//GEN-END:variables
+
+    /**
+     * @return the fileObject
+     */
+    public File getFileObject() {
+        return fileObject;
+    }
+
+    /**
+     * @param fileObject the fileObject to set
+     */
+    public void setFileObject(File fileObject) {
+        this.fileObject = fileObject;
+    }
 }

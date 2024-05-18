@@ -1,8 +1,17 @@
 package snotepad;
 
 import images.ImageRef;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.net.URL;
 import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
@@ -11,7 +20,14 @@ import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import static sun.jvm.hotspot.HelloWorld.e;
+import snotepad.helper.APICall;
+import snotepad.helper.FileSize;
+import snotepad.helper.ImageOpt;
+import snotepad.helper.MessageBox;
+import snotepad.helper.RegistryWorks;
+import snotepad.helper.SettingProperties;
+import static snotepad.helper.SettingProperties.KEY_AUTO_COPY;
+import static snotepad.helper.SettingProperties.KEY_AUTO_PUBLIC_LINK;
 
 /**
  *
@@ -19,6 +35,8 @@ import static sun.jvm.hotspot.HelloWorld.e;
  */
 public class MainFrame extends javax.swing.JFrame {
 
+    static String File_Argument_Complete_Path = null;
+    
     URL resNew = ImageRef.class.getResource("new.png");
     ImageIcon iconNew = new ImageIcon(resNew);
 
@@ -43,19 +61,61 @@ public class MainFrame extends javax.swing.JFrame {
     URL resLogo = ImageRef.class.getResource("logo.png");
     ImageIcon iconLogo = new ImageIcon(resLogo);
 
+    URL resOK = ImageRef.class.getResource("ok.png");
+    ImageIcon iconOK = new ImageIcon(resOK);
+
+    URL resLoading = ImageRef.class.getResource("loading24.gif");
+    ImageIcon iconLoading = new ImageIcon(resLoading);
+
     public MainFrame() {
         initComponents();
         setIconImage(iconLogo.getImage());
         applyDefaultToolbar(true);
+        
+        // hide the status bar at the moment
+        label_status.setVisible(false);
+        
+        // register the extension openwith
+        RegistryWorks.addOpenWithDefaultHandler();
+        
+        if(MainFrame.File_Argument_Complete_Path != null){
+            // we create a new tab
+            addNewTabWithFileOpened(MainFrame.File_Argument_Complete_Path);
+        }
+        
+    }
+
+    private void setStatus(String message, int imageOpt) {
+        label_status.setVisible(true);
+
+        if (imageOpt == ImageOpt.EMPTY) {
+            label_status.setIcon(null);
+        } else if (imageOpt == ImageOpt.LOADING) {
+            label_status.setIcon(iconLoading);
+        } else {
+            label_status.setIcon(iconOK);
+        }
+
+        label_status.setText(message);
     }
 
     private void applyDefaultToolbar(boolean defaultMode) {
 
         if (defaultMode) {
+            menu_increase.setEnabled(false);
+            menu_decrease.setEnabled(false);
+            menu_wrap.setEnabled(false);
+            menu_copy.setEnabled(false);
+
             btn_lock.setEnabled(false);
             btn_unlock.setEnabled(false);
             btn_save.setEnabled(false);
         } else {
+            menu_increase.setEnabled(true);
+            menu_decrease.setEnabled(true);
+            menu_wrap.setEnabled(true);
+            menu_copy.setEnabled(true);
+
             btn_lock.setEnabled(true);
             btn_unlock.setEnabled(true);
             btn_save.setEnabled(true);
@@ -82,6 +142,8 @@ public class MainFrame extends javax.swing.JFrame {
         btn_settings = new javax.swing.JButton(iconSetting);
         btn_about = new javax.swing.JButton(iconAbout);
         jSeparator5 = new javax.swing.JToolBar.Separator();
+        jPanel1 = new javax.swing.JPanel();
+        label_status = new javax.swing.JLabel();
         tabbedPanel = new javax.swing.JTabbedPane();
         jMenuBar1 = new javax.swing.JMenuBar();
         jMenu1 = new javax.swing.JMenu();
@@ -90,13 +152,13 @@ public class MainFrame extends javax.swing.JFrame {
         menu_save = new javax.swing.JMenuItem();
         jSeparator1 = new javax.swing.JPopupMenu.Separator();
         menu_exit = new javax.swing.JMenuItem();
-        jMenu2 = new javax.swing.JMenu();
+        menu_edit = new javax.swing.JMenu();
         menu_copy = new javax.swing.JMenuItem();
         menu_paste = new javax.swing.JMenuItem();
         menu_selectall = new javax.swing.JMenuItem();
         jSeparator2 = new javax.swing.JPopupMenu.Separator();
         menu_settings = new javax.swing.JMenuItem();
-        jMenu3 = new javax.swing.JMenu();
+        menu_view = new javax.swing.JMenu();
         menu_increase = new javax.swing.JMenuItem();
         menu_decrease = new javax.swing.JMenuItem();
         menu_wrap = new javax.swing.JMenuItem();
@@ -124,6 +186,11 @@ public class MainFrame extends javax.swing.JFrame {
         btn_open.setFocusable(false);
         btn_open.setHorizontalTextPosition(javax.swing.SwingConstants.CENTER);
         btn_open.setVerticalTextPosition(javax.swing.SwingConstants.BOTTOM);
+        btn_open.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btn_openActionPerformed(evt);
+            }
+        });
         jToolBar1.add(btn_open);
 
         btn_save.setText("Save");
@@ -165,6 +232,11 @@ public class MainFrame extends javax.swing.JFrame {
         btn_settings.setFocusable(false);
         btn_settings.setHorizontalTextPosition(javax.swing.SwingConstants.CENTER);
         btn_settings.setVerticalTextPosition(javax.swing.SwingConstants.BOTTOM);
+        btn_settings.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btn_settingsActionPerformed(evt);
+            }
+        });
         jToolBar1.add(btn_settings);
 
         btn_about.setText("About");
@@ -180,6 +252,16 @@ public class MainFrame extends javax.swing.JFrame {
         jToolBar1.add(jSeparator5);
 
         getContentPane().add(jToolBar1, java.awt.BorderLayout.PAGE_START);
+
+        jPanel1.setPreferredSize(new java.awt.Dimension(100, 20));
+        jPanel1.setLayout(new java.awt.BorderLayout());
+
+        label_status.setIcon(new javax.swing.ImageIcon(getClass().getResource("/images/loading24.gif"))); // NOI18N
+        label_status.setText("status written here : xxxx");
+        label_status.setBorder(javax.swing.BorderFactory.createEmptyBorder(1, 8, 1, 1));
+        jPanel1.add(label_status, java.awt.BorderLayout.CENTER);
+
+        getContentPane().add(jPanel1, java.awt.BorderLayout.PAGE_END);
 
         tabbedPanel.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
@@ -214,68 +296,139 @@ public class MainFrame extends javax.swing.JFrame {
         menu_save.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_S, java.awt.event.InputEvent.CTRL_DOWN_MASK));
         menu_save.setIcon(new javax.swing.ImageIcon(getClass().getResource("/images/save.png"))); // NOI18N
         menu_save.setText("Save");
+        menu_save.setEnabled(false);
+        menu_save.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                menu_saveActionPerformed(evt);
+            }
+        });
         jMenu1.add(menu_save);
         jMenu1.add(jSeparator1);
 
         menu_exit.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F4, java.awt.event.InputEvent.ALT_DOWN_MASK));
         menu_exit.setText("Exit");
+        menu_exit.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                menu_exitActionPerformed(evt);
+            }
+        });
         jMenu1.add(menu_exit);
 
         jMenuBar1.add(jMenu1);
 
-        jMenu2.setMnemonic('E');
-        jMenu2.setText("Edit");
+        menu_edit.setMnemonic('E');
+        menu_edit.setText("Edit");
+        menu_edit.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                menu_editMouseClicked(evt);
+            }
+        });
 
         menu_copy.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_C, java.awt.event.InputEvent.CTRL_DOWN_MASK));
         menu_copy.setIcon(new javax.swing.ImageIcon(getClass().getResource("/images/copy.png"))); // NOI18N
         menu_copy.setText("Copy");
-        jMenu2.add(menu_copy);
+        menu_copy.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                menu_copyActionPerformed(evt);
+            }
+        });
+        menu_edit.add(menu_copy);
 
         menu_paste.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_V, java.awt.event.InputEvent.CTRL_DOWN_MASK));
         menu_paste.setIcon(new javax.swing.ImageIcon(getClass().getResource("/images/paste.png"))); // NOI18N
         menu_paste.setText("Paste");
-        jMenu2.add(menu_paste);
+        menu_paste.setEnabled(false);
+        menu_paste.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                menu_pasteActionPerformed(evt);
+            }
+        });
+        menu_edit.add(menu_paste);
 
         menu_selectall.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_A, java.awt.event.InputEvent.CTRL_DOWN_MASK));
         menu_selectall.setText("Select All");
-        jMenu2.add(menu_selectall);
-        jMenu2.add(jSeparator2);
+        menu_selectall.setEnabled(false);
+        menu_selectall.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                menu_selectallActionPerformed(evt);
+            }
+        });
+        menu_edit.add(menu_selectall);
+        menu_edit.add(jSeparator2);
 
         menu_settings.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_E, java.awt.event.InputEvent.CTRL_DOWN_MASK));
         menu_settings.setIcon(new javax.swing.ImageIcon(getClass().getResource("/images/config.png"))); // NOI18N
         menu_settings.setText("Settings");
-        jMenu2.add(menu_settings);
+        menu_settings.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                menu_settingsActionPerformed(evt);
+            }
+        });
+        menu_edit.add(menu_settings);
 
-        jMenuBar1.add(jMenu2);
+        jMenuBar1.add(menu_edit);
 
-        jMenu3.setMnemonic('V');
-        jMenu3.setText("View");
+        menu_view.setMnemonic('V');
+        menu_view.setText("View");
+        menu_view.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                menu_viewMouseClicked(evt);
+            }
+        });
+        menu_view.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                menu_viewActionPerformed(evt);
+            }
+        });
 
-        menu_increase.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_UP, java.awt.event.InputEvent.CTRL_DOWN_MASK));
+        menu_increase.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_EQUALS, java.awt.event.InputEvent.CTRL_DOWN_MASK));
+        menu_increase.setIcon(new javax.swing.ImageIcon(getClass().getResource("/images/aup.png"))); // NOI18N
         menu_increase.setText("Increase Font");
         menu_increase.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 menu_increaseActionPerformed(evt);
             }
         });
-        jMenu3.add(menu_increase);
+        menu_view.add(menu_increase);
 
-        menu_decrease.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_DOWN, java.awt.event.InputEvent.CTRL_DOWN_MASK));
+        menu_decrease.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_MINUS, java.awt.event.InputEvent.CTRL_DOWN_MASK));
+        menu_decrease.setIcon(new javax.swing.ImageIcon(getClass().getResource("/images/adown.png"))); // NOI18N
         menu_decrease.setText("Decrease Font");
-        jMenu3.add(menu_decrease);
+        menu_decrease.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                menu_decreaseActionPerformed(evt);
+            }
+        });
+        menu_view.add(menu_decrease);
 
-        menu_wrap.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_W, java.awt.event.InputEvent.CTRL_DOWN_MASK));
+        menu_wrap.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_E, java.awt.event.InputEvent.CTRL_DOWN_MASK));
         menu_wrap.setText("Wrap Word");
-        jMenu3.add(menu_wrap);
+        menu_wrap.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                menu_wrapActionPerformed(evt);
+            }
+        });
+        menu_view.add(menu_wrap);
 
-        menu_unlock.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_O, java.awt.event.InputEvent.ALT_DOWN_MASK | java.awt.event.InputEvent.CTRL_DOWN_MASK));
+        menu_unlock.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_U, java.awt.event.InputEvent.ALT_DOWN_MASK | java.awt.event.InputEvent.CTRL_DOWN_MASK));
         menu_unlock.setText("Unlock");
-        jMenu3.add(menu_unlock);
+        menu_unlock.setEnabled(false);
+        menu_unlock.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                menu_unlockActionPerformed(evt);
+            }
+        });
+        menu_view.add(menu_unlock);
 
-        jMenuBar1.add(jMenu3);
+        jMenuBar1.add(menu_view);
 
         menu_about.setMnemonic('B');
         menu_about.setText("About");
+        menu_about.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                menu_aboutMouseClicked(evt);
+            }
+        });
         jMenuBar1.add(menu_about);
 
         setJMenuBar(jMenuBar1);
@@ -285,7 +438,9 @@ public class MainFrame extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void menu_increaseActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menu_increaseActionPerformed
-        // TODO add your handling code here:
+
+        getActivePanel().makeBiggerFont();
+
     }//GEN-LAST:event_menu_increaseActionPerformed
 
     private void btn_newActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btn_newActionPerformed
@@ -297,6 +452,10 @@ public class MainFrame extends javax.swing.JFrame {
     }//GEN-LAST:event_menu_newActionPerformed
 
     private void menu_openActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menu_openActionPerformed
+        openDialog();
+    }//GEN-LAST:event_menu_openActionPerformed
+
+    private void openDialog() {
         FileFilter filter = new FileNameExtensionFilter("SNotepad File", "snpad");
 
         JFileChooser jfc = new JFileChooser();
@@ -309,17 +468,103 @@ public class MainFrame extends javax.swing.JFrame {
         if (retVal == JFileChooser.APPROVE_OPTION) {
             // selecting file
             // reading content and opening inside the snotepad
+            readFromFile(jfc.getSelectedFile());
 
         } else {
             // cancel
         }
-    }//GEN-LAST:event_menu_openActionPerformed
+    }
+
+    private void readFromFile(File object) {
+        try {
+
+            String nama = object.getName();
+
+            BufferedReader reader = new BufferedReader(new FileReader(object));
+            StringBuilder builder = new StringBuilder();
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                builder.append(line);
+            }
+
+            addNewTab();
+            getActivePanel().setCodeText(builder.toString());
+            // show the text that has been translated
+            String n = objTranslator.translateFromCode(getActivePanel().getCodeText());
+            getActivePanel().setNewOriginalText(n);
+            getActivePanel().changeTitleOfTab(nama);
+
+            // changing the button
+            // back to the original state
+            btn_lock.setEnabled(true);
+            btn_unlock.setEnabled(false);
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            System.err.println("Error while reading snpad file...");
+        }
+    }
+
+    APICall webapi = new APICall();
 
     private void btn_lockActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btn_lockActionPerformed
         // encrypt text into code
         String n = objTranslator.translateIntoCode(getActivePanel().getOriginalText());
         getActivePanel().setCodeText(n);
         getActivePanel().lock();
+
+        // changing the button
+        btn_lock.setEnabled(false);
+        btn_unlock.setEnabled(true);
+
+        // check does it has a name?
+        // if so update the content (saved it)
+        if (getActivePanel().getFileObject() != null) {
+            writeToFile(getActivePanel().getFileObject());
+        }
+
+        if (SettingProperties.isExist()) {
+            // get the status of :
+            // auto copy
+            // auto public link
+
+            String _auto_copy = SettingProperties.loadData(KEY_AUTO_COPY);
+            String _auto_public_link = SettingProperties.loadData(KEY_AUTO_PUBLIC_LINK);
+
+            if (_auto_public_link != null) {
+                if (_auto_public_link.equalsIgnoreCase("true")) {
+
+                    if (isAnyTab()) {
+
+                        // check whether this has been saved ?
+                        if (!getActivePanel().isSaved()) {
+                            boolean want = MessageBox.confirm("Save File.", "Give a file name first...");
+
+                            if (want) {
+                                if (saveDialog()) {
+                                    getActivePanel().setSavedStatus(true);
+                                }
+                            }
+
+                        }
+
+                        if (getActivePanel().isSaved()) {
+                            // send the file to the server
+                            webapi.post(getActivePanel().getFileObject());
+                        }
+
+                    }
+                }
+            }
+
+            if (_auto_copy != null) {
+                if (_auto_copy.equalsIgnoreCase("true")) {
+                    autoCopyContent();
+                }
+            }
+
+        }
 
     }//GEN-LAST:event_btn_lockActionPerformed
 
@@ -328,6 +573,11 @@ public class MainFrame extends javax.swing.JFrame {
         String n = objTranslator.translateFromCode(getActivePanel().getCodeText());
         getActivePanel().setOriginalText(n);
         getActivePanel().lock();
+
+        btn_lock.setEnabled(true);
+        btn_unlock.setEnabled(false);
+
+
     }//GEN-LAST:event_btn_unlockActionPerformed
 
     private void tabbedPanelMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_tabbedPanelMouseClicked
@@ -337,21 +587,299 @@ public class MainFrame extends javax.swing.JFrame {
     }//GEN-LAST:event_tabbedPanelMouseClicked
 
     private void btn_saveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btn_saveActionPerformed
-        
-        getActivePanel().setSavedStatus(true);
-        
+
+        if (saveDialog()) {
+            String fsize = getFileSize(getActivePanel().getFileObject(), FileSize.Automatic);
+            setStatus("successfully saved! | file size : " + fsize, ImageOpt.SUCCESS);
+        }
+
     }//GEN-LAST:event_btn_saveActionPerformed
+
+    private String getFileSize(File obj, int needed) {
+        double fileSizeInBytes = obj.length();
+        double fileSizeInKB = fileSizeInBytes / 1024.0;
+        double fileSizeInMB = fileSizeInKB / 1024.0;
+
+        double n = 0;
+        String text = null;
+        int statUsed = needed;
+
+        if (needed == FileSize.Byte) {
+            n = fileSizeInBytes;
+        } else if (needed == FileSize.KiloByte) {
+            n = fileSizeInKB;
+        } else if (needed == FileSize.MegaByte) {
+            n = fileSizeInMB;
+        } else {
+            // this is automatic feature
+            if (fileSizeInBytes < 1000) {
+                n = fileSizeInBytes;
+                statUsed = FileSize.Byte;
+            } else if (fileSizeInBytes >= 1000 && fileSizeInKB < 1000) {
+                n = fileSizeInKB;
+                statUsed = FileSize.KiloByte;
+            } else if (fileSizeInKB >= 1000) {
+                n = fileSizeInMB;
+                statUsed = FileSize.MegaByte;
+            }
+
+        }
+
+        if (statUsed == FileSize.Byte) {
+            text = n + "b.";
+        } else if (statUsed == FileSize.KiloByte) {
+            text = n + "kb.";
+        } else if (statUsed == FileSize.MegaByte) {
+            text = n + "mb.";
+        }
+
+        return text;
+    }
+
+    File last_saved_file;
+
+    private boolean saveDialog() {
+
+        boolean saved = false;
+        FileFilter filter = new FileNameExtensionFilter("SNotepad File", "snpad");
+
+        JFileChooser jfc = new JFileChooser();
+        jfc.setFileFilter(filter);
+        jfc.setDialogTitle("Select *.snpad file...");
+        jfc.setFileSelectionMode(JFileChooser.FILES_ONLY);
+
+        int retVal = jfc.showSaveDialog(this);
+
+        if (retVal == JFileChooser.APPROVE_OPTION) {
+
+            // save the text to the file
+            writeToFile(jfc.getSelectedFile());
+
+            saved = true;
+
+        }
+
+        return saved;
+    }
 
     private void btn_aboutActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btn_aboutActionPerformed
 
         showAboutDialog();
     }//GEN-LAST:event_btn_aboutActionPerformed
 
-    private void showAboutDialog(){
+    private void menu_aboutMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_menu_aboutMouseClicked
+
+        showAboutDialog();
+    }//GEN-LAST:event_menu_aboutMouseClicked
+
+    private void menu_decreaseActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menu_decreaseActionPerformed
+        getActivePanel().makeSmallerFont();
+    }//GEN-LAST:event_menu_decreaseActionPerformed
+
+    private void menu_wrapActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menu_wrapActionPerformed
+        getActivePanel().toggleWrapMode();
+    }//GEN-LAST:event_menu_wrapActionPerformed
+
+    private void menu_unlockActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menu_unlockActionPerformed
+
+        if (menu_unlock.getText().equalsIgnoreCase("lock")) {
+            // encrypt text into code
+            String n = objTranslator.translateIntoCode(getActivePanel().getOriginalText());
+            getActivePanel().setCodeText(n);
+        } else {
+            // decrypt text into code
+            String n = objTranslator.translateFromCode(getActivePanel().getOriginalText());
+            getActivePanel().setCodeText(n);
+        }
+
+        getActivePanel().lock();
+
+
+    }//GEN-LAST:event_menu_unlockActionPerformed
+
+    private void menu_viewActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menu_viewActionPerformed
+
+
+    }//GEN-LAST:event_menu_viewActionPerformed
+
+    private void menu_viewMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_menu_viewMouseClicked
+
+        // changing the title of unlocking depend 
+        // upon tabs that currently active
+        if (isAnyTab()) {
+
+            menu_unlock.setEnabled(true);
+
+            // read the tab opened
+            if (getActivePanel().isLockOrNot()) {
+                menu_unlock.setText("Unlock");
+
+            } else {
+                menu_unlock.setText("Lock");
+            }
+
+        } else {
+            // no tab
+            menu_unlock.setEnabled(false);
+        }
+
+    }//GEN-LAST:event_menu_viewMouseClicked
+
+    public void autoCopyContent() {
+        copyToClipboard(getActivePanel().getCodeText());
+    }
+
+    private static void copyToClipboard(String text) {
+        Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+        StringSelection selection = new StringSelection(text);
+        clipboard.setContents(selection, null);
+        System.out.println("Text copied to clipboard: " + text);
+    }
+
+    private void menu_settingsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menu_settingsActionPerformed
+
+        openSettingsDialog();
+
+    }//GEN-LAST:event_menu_settingsActionPerformed
+
+    private void menu_copyActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menu_copyActionPerformed
+
+
+    }//GEN-LAST:event_menu_copyActionPerformed
+
+    private void menu_pasteActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menu_pasteActionPerformed
+
+        if (isAnyTab()) {
+            getActivePanel().pasteText();
+        }
+
+    }//GEN-LAST:event_menu_pasteActionPerformed
+
+    private void menu_selectallActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menu_selectallActionPerformed
+
+        if (isAnyTab()) {
+            getActivePanel().highlightText();
+        }
+
+    }//GEN-LAST:event_menu_selectallActionPerformed
+
+    private void menu_editMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_menu_editMouseClicked
+
+        if (isAnyTab()) {
+
+            if (!getActivePanel().isEmptyEditor()) {
+                menu_selectall.setEnabled(true);
+            }
+
+            if (anyDataClipboard()) {
+                menu_paste.setEnabled(true);
+            }
+        }
+
+    }//GEN-LAST:event_menu_editMouseClicked
+
+    private void menu_saveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menu_saveActionPerformed
+
+        saveDialog();
+
+    }//GEN-LAST:event_menu_saveActionPerformed
+
+    private void btn_openActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btn_openActionPerformed
+
+        openDialog();
+
+    }//GEN-LAST:event_btn_openActionPerformed
+
+    private void btn_settingsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btn_settingsActionPerformed
+
+        openSettingsDialog();
+
+    }//GEN-LAST:event_btn_settingsActionPerformed
+
+    private void menu_exitActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menu_exitActionPerformed
+
+        // automatically close everything 
+        System.exit(0);
+
+    }//GEN-LAST:event_menu_exitActionPerformed
+
+    private void openSettingsDialog() {
+
+        SettingDialog win = new SettingDialog(this, true);
+        win.setVisible(true);
+
+    }
+
+    private void writeToFile(File object) {
+
+        try {
+            File objectExt = null;
+
+            if (!object.getName().contains(".snpad")) {
+                objectExt = new File(object.getParent(), object.getName() + ".snpad");
+            } else {
+                objectExt = object;
+            }
+
+            BufferedWriter writer = new BufferedWriter(new FileWriter(objectExt));
+            if (!getActivePanel().isLockOrNot()) {
+                // translate first to code
+                String n = objTranslator.translateIntoCode(getActivePanel().getOriginalText());
+                getActivePanel().setCodeText(n);
+                getActivePanel().lock();
+
+                btn_lock.setEnabled(false);
+
+            }
+
+            writer.write(getActivePanel().getCodeText());
+            writer.close();
+
+            // turn off the save button
+            btn_save.setEnabled(false);
+            menu_save.setEnabled(false);
+
+            // update the title
+            String nama = objectExt.getName();
+            String namaLengkep = null;
+            if (!nama.contains(".snpad")) {
+                namaLengkep = nama + ".snpad";
+                getActivePanel().changeTitleOfTab(namaLengkep);
+            } else {
+                namaLengkep = nama;
+                getActivePanel().changeTitleOfTab(nama);
+            }
+
+            getActivePanel().setFileObject(objectExt);
+            getActivePanel().setFileName(namaLengkep);
+            getActivePanel().setSavedStatus(true);
+
+        } catch (Exception ex) {
+            System.err.println("Error when saving file...");
+        }
+
+    }
+
+    private boolean anyDataClipboard() {
+        try {
+            String text = (String) Toolkit.getDefaultToolkit().getSystemClipboard().getData(DataFlavor.stringFlavor);
+
+            if (text != null) {
+                return true;
+            }
+
+        } catch (Exception ex) {
+            System.err.println("Error while getting data from clipboard.");
+        }
+
+        return false;
+    }
+
+    private void showAboutDialog() {
         AboutDialog dialog = new AboutDialog(this, true);
         dialog.setVisible(true);
     }
-    
+
     private JPopupMenu popupMenu;
 
     private void showPopupMenu(int x, int y) {
@@ -377,6 +905,7 @@ public class MainFrame extends javax.swing.JFrame {
             public void actionPerformed(ActionEvent e) {
                 tabbedPanel.removeAll();
                 applyDefaultToolbarIfAnyTabs();
+
             }
         });
         popupMenu.add(closeAllTabsItem);
@@ -384,14 +913,15 @@ public class MainFrame extends javax.swing.JFrame {
         popupMenu.show(tabbedPanel, x, y);
     }
 
-    private void applyDefaultToolbarIfAnyTabs(){
-        if(isAnyTab()){
+    private void applyDefaultToolbarIfAnyTabs() {
+        if (isAnyTab()) {
             applyDefaultToolbar(false);
-        }else{
+        } else {
+            menu_save.setEnabled(false);
             applyDefaultToolbar(true);
         }
     }
-    
+
     private boolean isAnyTab() {
         if (tabbedPanel.getTabCount() > 0) {
             return true;
@@ -406,23 +936,40 @@ public class MainFrame extends javax.swing.JFrame {
     }
 
     //ArrayList<CustomPanel2> dataPanel = new ArrayList<CustomPanel2>();
+    
+    private void addNewTabWithFileOpened(String fileCompletePath) {
+       
+         // activating save menu
+        menu_save.setEnabled(true);
+
+        // opening lock of toolbar
+        applyDefaultToolbar(false);
+        
+        readFromFile(new File(fileCompletePath));
+        
+        // switch focus
+        showFocusNewTab();
+        
+    }
+    
     private void addNewTab() {
+        // activating save menu
+        menu_save.setEnabled(true);
+
         // opening lock of toolbar
         applyDefaultToolbar(false);
 
         // adding new Panel into tabbed panel
         int nomer = tabbedPanel.getTabCount();
-        CustomPanel2 panel1 = new CustomPanel2(tabbedPanel, nomer);
+        CustomPanel2 panel1 = new CustomPanel2(tabbedPanel, nomer, menu_unlock, menu_save, btn_save);
         tabbedPanel.add("- new -", panel1);
         //dataPanel.add(panel1);
-        
+
         // switch focus
         showFocusNewTab();
     }
-    
-    
-    
-    private void showFocusNewTab(){
+
+    private void showFocusNewTab() {
         tabbedPanel.setSelectedIndex(tabbedPanel.getTabCount() - 1);
     }
 
@@ -438,7 +985,15 @@ public class MainFrame extends javax.swing.JFrame {
         runMe();
     }
 
-    public static void runMe() {
+    public static void runMeWithFileOpened(String filePath){
+        
+        // this file path will be read its content 
+        // and displayed into the tab
+        MainFrame.File_Argument_Complete_Path = filePath;
+        runMe();
+    }
+    
+    public  static void runMe() {
         try {
             for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
                 if ("Windows".equals(info.getName())) {
@@ -446,14 +1001,8 @@ public class MainFrame extends javax.swing.JFrame {
                     break;
                 }
             }
-        } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(MainFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(MainFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(MainFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(MainFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+        } catch(Exception ex) {
+            System.err.println("error first time launching SNotepad!");
         }
         //</editor-fold>
 
@@ -476,18 +1025,19 @@ public class MainFrame extends javax.swing.JFrame {
     private javax.swing.JButton btn_settings;
     private javax.swing.JButton btn_unlock;
     private javax.swing.JMenu jMenu1;
-    private javax.swing.JMenu jMenu2;
-    private javax.swing.JMenu jMenu3;
     private javax.swing.JMenuBar jMenuBar1;
+    private javax.swing.JPanel jPanel1;
     private javax.swing.JPopupMenu.Separator jSeparator1;
     private javax.swing.JPopupMenu.Separator jSeparator2;
     private javax.swing.JToolBar.Separator jSeparator3;
     private javax.swing.JToolBar.Separator jSeparator4;
     private javax.swing.JToolBar.Separator jSeparator5;
     private javax.swing.JToolBar jToolBar1;
+    private javax.swing.JLabel label_status;
     private javax.swing.JMenu menu_about;
     private javax.swing.JMenuItem menu_copy;
     private javax.swing.JMenuItem menu_decrease;
+    private javax.swing.JMenu menu_edit;
     private javax.swing.JMenuItem menu_exit;
     private javax.swing.JMenuItem menu_increase;
     private javax.swing.JMenuItem menu_new;
@@ -497,6 +1047,7 @@ public class MainFrame extends javax.swing.JFrame {
     private javax.swing.JMenuItem menu_selectall;
     private javax.swing.JMenuItem menu_settings;
     private javax.swing.JMenuItem menu_unlock;
+    private javax.swing.JMenu menu_view;
     private javax.swing.JMenuItem menu_wrap;
     private javax.swing.JTabbedPane tabbedPanel;
     // End of variables declaration//GEN-END:variables
