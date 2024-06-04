@@ -30,7 +30,6 @@ public class CustomPanel2 extends javax.swing.JPanel {
     private File fileObject;
     private String fileName;
     private String completeLocation;
-    private StringBuffer stb = new StringBuffer();
     private JTabbedPane tabbedPanel;
     private JMenuItem menuLock;
     private JMenuItem menuSave;
@@ -42,18 +41,13 @@ public class CustomPanel2 extends javax.swing.JPanel {
         addMark();
     }
 
-    public void changeTitleOfTab(String newName) {
-        tabbedPanel.setTitleAt(nomer, newName);
+    public void decreaseIndexNum() {
+        nomer--;
     }
 
-    public void appendText(String n) {
+    public void changeTitleOfTab(String newName) {
 
-        stb.append(n);
-        this.setOriginalText(stb.toString());
-
-        setSavedStatus(false);
-
-        addMark();
+        tabbedPanel.setTitleAt(nomer, newName);
     }
 
     int fontSize;
@@ -76,6 +70,10 @@ public class CustomPanel2 extends javax.swing.JPanel {
         return saved;
     }
 
+    public String getTitle() {
+        return tabbedPanel.getTitleAt(nomer);
+    }
+
     private void addMark() {
         String title = tabbedPanel.getTitleAt(nomer);
 
@@ -91,12 +89,6 @@ public class CustomPanel2 extends javax.swing.JPanel {
 
     }
 
-    public  void clear() {
-        stb = new StringBuffer();
-        this.setOriginalText(stb.toString());
-
-    }
-
     public void lock() {
         // this will automatically toggle
         locked = !locked;
@@ -106,12 +98,11 @@ public class CustomPanel2 extends javax.swing.JPanel {
         jTextArea.setEnabled(!locked);
     }
 
-    public void setNewOriginalText(String n){
-        this.clear();
-        this.appendText(n);
+    public void setNewOriginalText(String n) {
         this.refreshRender();
+        this.setOriginalText(n);
     }
-    
+
     public void refreshRender() {
         if (isLockOrNot()) {
             jTextArea.setText(this.getCodeText());
@@ -198,6 +189,10 @@ public class CustomPanel2 extends javax.swing.JPanel {
         applyDropable();
     }
 
+    public void setTabbedPanel(JTabbedPane jtb2) {
+        tabbedPanel = jtb2;
+    }
+
     public CustomPanel2(JTabbedPane jtb, int nomerX,
             JMenuItem menuLockNa, JMenuItem menuSaveNa,
             JButton btnSaveNa) {
@@ -207,7 +202,7 @@ public class CustomPanel2 extends javax.swing.JPanel {
         menuLock = menuLockNa;
         menuSave = menuSaveNa;
         btn_save = btnSaveNa;
-        
+
         applyDropable();
     }
 
@@ -225,7 +220,9 @@ public class CustomPanel2 extends javax.swing.JPanel {
                         if (!files.isEmpty()) {
                             File file = files.get(0);
                             // clear the notepad first
-                            clear();
+
+                            setOriginalText("");
+                            
                             readFileContent(file);
 
                             // to make the cursor at the beginning of the content
@@ -261,6 +258,9 @@ public class CustomPanel2 extends javax.swing.JPanel {
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 jTextAreaKeyPressed(evt);
             }
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                jTextAreaKeyReleased(evt);
+            }
         });
         jScrollPane1.setViewportView(jTextArea);
 
@@ -292,16 +292,21 @@ public class CustomPanel2 extends javax.swing.JPanel {
 
             this.lock();
 
-        } else {
-
-            // toggle the save button
-            menuSave.setEnabled(true);
-            btn_save.setEnabled(true);
-            this.appendText(jTextArea.getText());
-
-        }
+        } 
 
     }//GEN-LAST:event_jTextAreaKeyPressed
+
+    private void jTextAreaKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_jTextAreaKeyReleased
+        
+          // toggle the save button
+            menuSave.setEnabled(true);
+            btn_save.setEnabled(true);
+
+            this.setOriginalText(jTextArea.getText());
+            setSavedStatus(false);
+            addMark();
+        
+    }//GEN-LAST:event_jTextAreaKeyReleased
 
     private boolean isBackSpace(KeyEvent evt) {
         boolean t = false;
@@ -334,18 +339,20 @@ public class CustomPanel2 extends javax.swing.JPanel {
 
             BufferedReader reader = new BufferedReader(new FileReader(file));
 
+            StringBuffer stb = new StringBuffer();
             String line;
             while ((line = reader.readLine()) != null) {
-                appendText(line);
-                appendText("\n");
+                stb.append(line);
+                stb.append("\n");
             }
 
+            setOriginalText(stb.toString());
             this.jTextArea.setText(getOriginalText());
 
         } catch (Exception e) {
             System.err.println("Error when reading file content...");
         }
-        
+
     }
 
     public boolean isEmptyEditor() {
@@ -354,14 +361,6 @@ public class CustomPanel2 extends javax.swing.JPanel {
         }
 
         return false;
-    }
-
-    private void backspace() {
-        // deleting one char from the original text
-        stb = new StringBuffer();
-        this.appendText(
-                getOriginalText().substring(0, getOriginalText().length() - 1));
-
     }
 
     void highlightText() {
@@ -382,9 +381,8 @@ public class CustomPanel2 extends javax.swing.JPanel {
 
     void pasteText() {
 
-         this.jTextArea.requestFocus();
+        this.jTextArea.requestFocus();
 
-        
         try {
             Robot robot = new Robot();
             robot.keyPress(KeyEvent.VK_CONTROL);

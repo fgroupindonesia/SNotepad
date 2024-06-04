@@ -36,7 +36,7 @@ import static snotepad.helper.SettingProperties.KEY_AUTO_PUBLIC_LINK;
 public class MainFrame extends javax.swing.JFrame {
 
     static String File_Argument_Complete_Path = null;
-    
+
     URL resNew = ImageRef.class.getResource("new.png");
     ImageIcon iconNew = new ImageIcon(resNew);
 
@@ -71,18 +71,18 @@ public class MainFrame extends javax.swing.JFrame {
         initComponents();
         setIconImage(iconLogo.getImage());
         applyDefaultToolbar(true);
-        
+
         // hide the status bar at the moment
         label_status.setVisible(false);
-        
+
         // register the extension openwith
         RegistryWorks.addOpenWithDefaultHandler();
-        
-        if(MainFrame.File_Argument_Complete_Path != null){
+
+        if (MainFrame.File_Argument_Complete_Path != null) {
             // we create a new tab
             addNewTabWithFileOpened(MainFrame.File_Argument_Complete_Path);
         }
-        
+
     }
 
     private void setStatus(String message, int imageOpt) {
@@ -259,6 +259,12 @@ public class MainFrame extends javax.swing.JFrame {
         label_status.setIcon(new javax.swing.ImageIcon(getClass().getResource("/images/loading24.gif"))); // NOI18N
         label_status.setText("status written here : xxxx");
         label_status.setBorder(javax.swing.BorderFactory.createEmptyBorder(1, 8, 1, 1));
+        label_status.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        label_status.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                label_statusMouseClicked(evt);
+            }
+        });
         jPanel1.add(label_status, java.awt.BorderLayout.CENTER);
 
         getContentPane().add(jPanel1, java.awt.BorderLayout.PAGE_END);
@@ -494,6 +500,7 @@ public class MainFrame extends javax.swing.JFrame {
             String n = objTranslator.translateFromCode(getActivePanel().getCodeText());
             getActivePanel().setNewOriginalText(n);
             getActivePanel().changeTitleOfTab(nama);
+            getActivePanel().setFileObject(object);
 
             // changing the button
             // back to the original state
@@ -542,6 +549,7 @@ public class MainFrame extends javax.swing.JFrame {
                             boolean want = MessageBox.confirm("Save File.", "Give a file name first...");
 
                             if (want) {
+
                                 if (saveDialog()) {
                                     getActivePanel().setSavedStatus(true);
                                 }
@@ -552,15 +560,19 @@ public class MainFrame extends javax.swing.JFrame {
                         if (getActivePanel().isSaved()) {
                             // send the file to the server
                             webapi.post(getActivePanel().getFileObject());
+
+                            setStatus("URL successfully generated! (" + webapi.getAsRespondObject().getUrl() + ")", ImageOpt.SUCCESS);
+
+                            if (_auto_copy != null) {
+                                if (_auto_copy.equalsIgnoreCase("true")) {
+                                    autoCopyContent();
+                                    setStatus("URL is Generated! Click to Copied to clipboard! (" + webapi.getAsRespondObject().getUrl() + ")", ImageOpt.SUCCESS);
+                                }
+                            }
+
                         }
 
                     }
-                }
-            }
-
-            if (_auto_copy != null) {
-                if (_auto_copy.equalsIgnoreCase("true")) {
-                    autoCopyContent();
                 }
             }
 
@@ -588,7 +600,10 @@ public class MainFrame extends javax.swing.JFrame {
 
     private void btn_saveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btn_saveActionPerformed
 
-        if (saveDialog()) {
+        if(getActivePanel().getTitle().contains(".snpad")){
+            // this file is already exist in the laptop
+            writeToFile(getActivePanel().getFileObject());
+        }else if (saveDialog()) {
             String fsize = getFileSize(getActivePanel().getFileObject(), FileSize.Automatic);
             setStatus("successfully saved! | file size : " + fsize, ImageOpt.SUCCESS);
         }
@@ -636,8 +651,7 @@ public class MainFrame extends javax.swing.JFrame {
         return text;
     }
 
-    File last_saved_file;
-
+  
     private boolean saveDialog() {
 
         boolean saved = false;
@@ -803,6 +817,15 @@ public class MainFrame extends javax.swing.JFrame {
 
     }//GEN-LAST:event_menu_exitActionPerformed
 
+    private void label_statusMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_label_statusMouseClicked
+
+        if(label_status.getText().contains("Generated")){
+            // copy the link to clipboard
+            copyToClipboard(webapi.getAsRespondObject().getUrl());
+        }
+        
+    }//GEN-LAST:event_label_statusMouseClicked
+
     private void openSettingsDialog() {
 
         SettingDialog win = new SettingDialog(this, true);
@@ -829,6 +852,7 @@ public class MainFrame extends javax.swing.JFrame {
                 getActivePanel().lock();
 
                 btn_lock.setEnabled(false);
+                btn_unlock.setEnabled(true);
 
             }
 
@@ -854,7 +878,10 @@ public class MainFrame extends javax.swing.JFrame {
             getActivePanel().setFileName(namaLengkep);
             getActivePanel().setSavedStatus(true);
 
+            System.out.println("We just saved : " + getActivePanel().getOriginalText());
+            
         } catch (Exception ex) {
+            ex.printStackTrace();
             System.err.println("Error when saving file...");
         }
 
@@ -893,6 +920,9 @@ public class MainFrame extends javax.swing.JFrame {
             public void actionPerformed(ActionEvent e) {
                 int tabIndex = tabbedPanel.indexAtLocation(x1, y1);
                 if (tabIndex != -1) {
+                    // re-index the number
+                    reIndexPanel(tabIndex);
+
                     tabbedPanel.remove(tabIndex);
                     applyDefaultToolbarIfAnyTabs();
                 }
@@ -930,28 +960,42 @@ public class MainFrame extends javax.swing.JFrame {
         return false;
     }
 
+    private void reIndexPanel(int removedIndex) {
+        int many = tabbedPanel.getTabCount();
+
+        for (int i = removedIndex; i < many; i++) {
+
+            CustomPanel2 panel = (CustomPanel2) tabbedPanel.getComponentAt(i);
+            panel.decreaseIndexNum();
+            
+        }
+
+    }
+
     private CustomPanel2 getActivePanel() {
         CustomPanel2 panel = (CustomPanel2) tabbedPanel.getSelectedComponent();
+        // we update the existing data tabbed pane
+        panel.setTabbedPanel(tabbedPanel);
+
         return panel;
     }
 
     //ArrayList<CustomPanel2> dataPanel = new ArrayList<CustomPanel2>();
-    
     private void addNewTabWithFileOpened(String fileCompletePath) {
-       
-         // activating save menu
+
+        // activating save menu
         menu_save.setEnabled(true);
 
         // opening lock of toolbar
         applyDefaultToolbar(false);
-        
+
         readFromFile(new File(fileCompletePath));
-        
+
         // switch focus
         showFocusNewTab();
-        
+
     }
-    
+
     private void addNewTab() {
         // activating save menu
         menu_save.setEnabled(true);
@@ -961,6 +1005,7 @@ public class MainFrame extends javax.swing.JFrame {
 
         // adding new Panel into tabbed panel
         int nomer = tabbedPanel.getTabCount();
+
         CustomPanel2 panel1 = new CustomPanel2(tabbedPanel, nomer, menu_unlock, menu_save, btn_save);
         tabbedPanel.add("- new -", panel1);
         //dataPanel.add(panel1);
@@ -985,15 +1030,15 @@ public class MainFrame extends javax.swing.JFrame {
         runMe();
     }
 
-    public static void runMeWithFileOpened(String filePath){
-        
+    public static void runMeWithFileOpened(String filePath) {
+
         // this file path will be read its content 
         // and displayed into the tab
         MainFrame.File_Argument_Complete_Path = filePath;
         runMe();
     }
-    
-    public  static void runMe() {
+
+    public static void runMe() {
         try {
             for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
                 if ("Windows".equals(info.getName())) {
@@ -1001,7 +1046,7 @@ public class MainFrame extends javax.swing.JFrame {
                     break;
                 }
             }
-        } catch(Exception ex) {
+        } catch (Exception ex) {
             System.err.println("error first time launching SNotepad!");
         }
         //</editor-fold>
