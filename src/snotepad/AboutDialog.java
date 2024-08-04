@@ -11,8 +11,9 @@ import java.util.Locale;
 import java.util.Properties;
 
 /**
- *
- * @author pc-i3 gen4
+ * Project : SNotepad
+ * File : AboutDialog.java
+ * @author FGroupIndonesia
  */
 public class AboutDialog extends javax.swing.JDialog {
 

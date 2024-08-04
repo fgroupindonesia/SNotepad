@@ -9,8 +9,9 @@ import java.security.ProtectionDomain;
 import java.util.Properties;
 
 /**
- *
- * @author pc-i3 gen4
+ * Project : SNotepad
+ * File : SettingProperties.java
+ * @author FGroupIndonesia
  */
 public class SettingProperties {
 

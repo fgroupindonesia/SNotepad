@@ -11,7 +11,8 @@ import java.security.spec.KeySpec;
 import java.util.Base64;
 
 /**
- *
+ * Project : SNotepad
+ * File : Translator.java
  * @author FGroupIndonesia
  */
 

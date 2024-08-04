@@ -7,8 +7,9 @@ import static snotepad.helper.SettingProperties.KEY_AUTO_COPY;
 import static snotepad.helper.SettingProperties.KEY_AUTO_PUBLIC_LINK;
 
 /**
- *
- * @author pc-i3 gen4
+ * Project : SNotepad
+ * File : SettingDialog.java
+ * @author FGroupIndonesia
  */
 public class SettingDialog extends javax.swing.JDialog {
 

@@ -2,10 +2,7 @@ package snotepad.helper;
 
 import com.google.gson.Gson;
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -15,13 +12,12 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.file.Files;
-import java.util.HashSet;
-import java.util.Set;
 import raw.Entry;
 
 /**
- *
- * @author pc-i3 gen4
+ * Project : SNotepad
+ * File : APICall.java
+ * @author FGroupIndonesia
  */
 public class APICall {
 

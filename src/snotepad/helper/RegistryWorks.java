@@ -4,8 +4,9 @@ import com.sun.jna.platform.win32.Advapi32Util;
 import com.sun.jna.platform.win32.WinReg;
 
 /**
- *
- * @author pc-i3 gen4
+ * Project : SNotepad
+ * File : RegistryWorks.java
+ * @author FGroupIndonesia
  */
 
 public class RegistryWorks {

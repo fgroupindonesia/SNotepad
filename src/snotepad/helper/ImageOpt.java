@@ -1,8 +1,9 @@
 package snotepad.helper;
 
 /**
- *
- * @author pc-i3 gen4
+ * Project : SNotepad
+ * File : ImageOpt.java
+ * @author FGroupIndonesia
  */
 public class ImageOpt {
 

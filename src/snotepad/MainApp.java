@@ -1,7 +1,8 @@
 package snotepad;
 
 /**
- *
+ * Project : SNotepad
+ * File : MainApp.java
  * @author FGroupIndonesia
  */
 public class MainApp {

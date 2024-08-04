@@ -1,0 +1,4 @@
+Script for analyzing and making JRE (using jlink & jdeps)
+
+1) jdeps -summary SNotepad.jar
+2) jlink --add-modules java.base,java.datatransfer,java.desktop,java.logging,java.sql --output jre11.0.19 --strip-debug --no-man-pages --no-header-files --compress=2

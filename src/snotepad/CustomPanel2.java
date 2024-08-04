@@ -17,7 +17,8 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 
 /**
- *
+ * Project : SNotepad
+ * File : CustomPanel2.java
  * @author FGroupIndonesia
  */
 public class CustomPanel2 extends javax.swing.JPanel {

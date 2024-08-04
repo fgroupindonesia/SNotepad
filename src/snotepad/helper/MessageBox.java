@@ -3,6 +3,12 @@ package snotepad.helper;
 import java.awt.Component;
 import javax.swing.JOptionPane;
 
+/**
+ * Project : SNotepad
+ * File : MessageBox.java
+ * @author FGroupIndonesia
+ */
+
 public class MessageBox {
 
     static Component parentComponent;

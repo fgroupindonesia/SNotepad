@@ -30,7 +30,8 @@ import static snotepad.helper.SettingProperties.KEY_AUTO_COPY;
 import static snotepad.helper.SettingProperties.KEY_AUTO_PUBLIC_LINK;
 
 /**
- *
+ * Project : SNotepad
+ * File : MainFrame.java
  * @author FGroupIndonesia
  */
 public class MainFrame extends javax.swing.JFrame {
@@ -150,6 +151,7 @@ public class MainFrame extends javax.swing.JFrame {
         menu_new = new javax.swing.JMenuItem();
         menu_open = new javax.swing.JMenuItem();
         menu_save = new javax.swing.JMenuItem();
+        menu_saveAs = new javax.swing.JMenuItem();
         jSeparator1 = new javax.swing.JPopupMenu.Separator();
         menu_exit = new javax.swing.JMenuItem();
         menu_edit = new javax.swing.JMenu();
@@ -309,6 +311,15 @@ public class MainFrame extends javax.swing.JFrame {
             }
         });
         jMenu1.add(menu_save);
+
+        menu_saveAs.setIcon(new javax.swing.ImageIcon(getClass().getResource("/images/save.png"))); // NOI18N
+        menu_saveAs.setText("Save As");
+        menu_saveAs.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                menu_saveAsActionPerformed(evt);
+            }
+        });
+        jMenu1.add(menu_saveAs);
         jMenu1.add(jSeparator1);
 
         menu_exit.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F4, java.awt.event.InputEvent.ALT_DOWN_MASK));
@@ -826,11 +837,13 @@ public class MainFrame extends javax.swing.JFrame {
         
     }//GEN-LAST:event_label_statusMouseClicked
 
-    private void openSettingsDialog() {
+    private void menu_saveAsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menu_saveAsActionPerformed
+        saveDialog();
+    }//GEN-LAST:event_menu_saveAsActionPerformed
 
+    private void openSettingsDialog() {
         SettingDialog win = new SettingDialog(this, true);
         win.setVisible(true);
-
     }
 
     private void writeToFile(File object) {
@@ -1089,6 +1102,7 @@ public class MainFrame extends javax.swing.JFrame {
     private javax.swing.JMenuItem menu_open;
     private javax.swing.JMenuItem menu_paste;
     private javax.swing.JMenuItem menu_save;
+    private javax.swing.JMenuItem menu_saveAs;
     private javax.swing.JMenuItem menu_selectall;
     private javax.swing.JMenuItem menu_settings;
     private javax.swing.JMenuItem menu_unlock;

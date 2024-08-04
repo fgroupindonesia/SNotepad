@@ -2,8 +2,9 @@
 package raw;
 
 /**
- *
- * @author pc-i3 gen4
+ * Project : SNotepad
+ * File : Entry.java
+ * @author FGroupIndonesia
  */
 public class Entry {
     private String url;
